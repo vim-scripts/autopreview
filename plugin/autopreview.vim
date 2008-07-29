@@ -1,14 +1,14 @@
 " Description:
-"   Vim plugin for previewing definitions of functions or variables on
+"   Vim plugin for previewing definitions of variables or functions on
 "   the cursor automatically like Source Insight, it's great conveniet
-"   when grok source codes.
+"   when insight source codes.
 "
 " Maintainer: Yang Baohua <yangbaohua[At]gmail.com>
-" Last Change: 2008 May 09
-" Version: v0.2
+" Last Change: 2008 July 29
+" Version: v1.0
 "
 " Acknowledgements:
-"   Thanks to Vim-help mail list
+"   Thanks to Vim-help & Mail-list
 "   thinelephant[At]newsmth
 "   Dieken[At]newsmth
 "
@@ -18,23 +18,35 @@
 "   Set g:AutoPreview_enabled to 1 or 0 and g:AutoPreview_allowed_filetypes
 "   in your vimrc, here is the default setting:
 "
-"     let g:AutoPreview_enabled = 0
+"     let g:AutoPreview_enabled = 1
 "     let g:AutoPreview_allowed_filetypes = ["c", "cpp", "java"]
 "
 "   The file type of current buffer can be checked with `:echo &ft`, and
 "   you can call `:AutoPreviewToggle` command to enable or disable this
-"   plugin at runtime.
+"   plugin at runtime, for example:
 "
-"   You'd better set 'updatetime' option to 2000 or even less for good
-"   responsibility, see `:help updatetime` for details.
+"     nnoremap <F5> :AutoPreviewToggle<CR> 
+"     inoremap <F5> <ESC>:AutoPreviewToggle<CR>i 
+"
+"   You'd better set 'updatetime' option to 1000 or even less for good
+"   responsibility, see `:help updatetime` for details, for example:
+"
+"     set updatetime=500
 "
 " ChangeLog:
 "   2008-05-07  Yang Baohua <yangbaohua@gmail.com>
-"       * initial inspiration and implementation, release v0.1
+"     release v0.1
+"       * initial inspiration and implementation
 "
 "   2008-05-09  Liu Yubao <yubao.liu@gmail.com>
-"       * cleanup, optimize and enhance, release v0.2
-
+"     release v0.2
+"       * cleanup, optimize and enhance
+"
+"   2008-07-29  Yang Baohua <yangbaohua@gmail.com>
+"     release v1.0: a stable and total version
+"       * add highlight effect with previewword
+"       * deal with folded codes
+"       * some changes with the use guide document
 
 if exists ("loaded_autopreview") || !has("autocmd") || !exists(":filetype")
     finish
@@ -102,11 +114,35 @@ func s:SetCursorHoldAutoCmd()
     augroup END
 endfunc
 
-
 func s:PreviewWord()
+    if &previewwindow
+        return
+    endif
     let w = expand("<cword>")     " get the word under cursor
     if w =~ '\a'                  " if the word contains a letter
-        silent! exe "ptag " . w
+        try
+            silent! exe "ptag " . w
+        catch
+            return
+        endtry
+        let oldwin = winnr() "get current window
+        silent! wincmd P "jump to preview window 
+        if &previewwindow "if jump to preview windows successfully
+            if has("folding")
+                silent! .foldopen "unfold
+            endif
+            call search("$","b") "to the end of last line
+            let w = substitute(w,'\\','\\\\',"")
+            call search('\<\V' . w . '\>') "cursor on the match word
+
+            match none "delete the current highlight marks
+
+            "high light the match word in the previewwindow
+            hi previewWord term=bold ctermbg=green guibg=green
+            exe 'match previewWord "\%' . line(".") . 'l\%' . col(".") . 'c\k*"'
+            exec oldwin.'wincmd w'  
+            "back from preview window
+        endif
     endif
 endfun
 
